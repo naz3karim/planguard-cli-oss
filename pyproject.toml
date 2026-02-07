@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "policycheck"
+version = "0.2.0"
+description = "Terraform Compliance-as-Code gate (OPA/Rego) with control packs."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "pyyaml>=6.0.2",
+  "rich>=13.7.1",
+]
+
+[project.scripts]
+policycheck = "policycheck.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["policycheck"]

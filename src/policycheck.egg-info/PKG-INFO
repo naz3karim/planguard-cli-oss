@@ -1,0 +1,8 @@
+Metadata-Version: 2.4
+Name: policycheck
+Version: 0.2.0
+Summary: Terraform Compliance-as-Code gate (OPA/Rego) with control packs.
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: pyyaml>=6.0.2
+Requires-Dist: rich>=13.7.1
