@@ -1,11 +1,13 @@
+# Python
 .venv/
 __pycache__/
-*.pyc
+*.py[cod]
 *.egg-info/
 build/
 dist/
-plan.json
-tfplan
-*.tfstate
-*.tfstate.*
+
+# Editors
+.vscode/
+
+# OS
 .DS_Store
