@@ -1,0 +1,23 @@
+name: PolicyCheck
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  policycheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate Terraform plan
+        run: |
+          terraform init -input=false
+          terraform plan -out=tfplan
+          terraform show -json tfplan > plan.json
+
+      - name: Run PolicyCheck
+        uses: docker://ghcr.io/naz3karim/policycheck:latest
+        with:
+          args: check plan.json --pack baseline
