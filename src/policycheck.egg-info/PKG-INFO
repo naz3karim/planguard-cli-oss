@@ -6,3 +6,5 @@ Requires-Python: >=3.11
 Description-Content-Type: text/markdown
 Requires-Dist: pyyaml>=6.0.2
 Requires-Dist: rich>=13.7.1
+Requires-Dist: fastapi>=0.110
+Requires-Dist: uvicorn>=0.29

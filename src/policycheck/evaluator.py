@@ -13,6 +13,11 @@ def _opa_bin() -> str:
 
 
 def _run_opa_eval(rules_dir: Path, input_plan: Dict[str, Any], env: str) -> Dict[str, Any]:
+    """
+    OPA contract:
+      Query: data.compliance
+      Expected result value: {"deny": <set>, "warn": <set>} (sets become arrays in JSON)
+    """
     with tempfile.TemporaryDirectory() as td:
         td_path = Path(td)
         input_path = td_path / "input.json"
@@ -31,10 +36,14 @@ def _run_opa_eval(rules_dir: Path, input_plan: Dict[str, Any], env: str) -> Dict
         proc = subprocess.run(cmd, capture_output=True, text=True)
 
         if proc.returncode != 0:
-            return {"errors": [{"message": "OPA eval failed", "stderr": proc.stderr.strip()}], "deny": [], "warn": []}
+            return {
+                "errors": [{"message": "OPA eval failed", "stderr": proc.stderr.strip() or proc.stdout.strip()}],
+                "deny": [],
+                "warn": [],
+            }
 
         parsed = json.loads(proc.stdout)
-        value = {}
+        value: Dict[str, Any] = {}
         try:
             value = parsed["result"][0]["expressions"][0].get("value", {}) or {}
         except Exception:
@@ -42,6 +51,8 @@ def _run_opa_eval(rules_dir: Path, input_plan: Dict[str, Any], env: str) -> Dict
 
         deny = value.get("deny", []) or []
         warn = value.get("warn", []) or []
+
+        # Sets come out as arrays in JSON; normalize anyway.
         if not isinstance(deny, list):
             deny = []
         if not isinstance(warn, list):
@@ -51,7 +62,17 @@ def _run_opa_eval(rules_dir: Path, input_plan: Dict[str, Any], env: str) -> Dict
 
 
 def evaluate(plan: Dict[str, Any], pack_dir: Path, env: str) -> Dict[str, Any]:
-    pack = Pack.load(pack_dir)
+    try:
+        pack = Pack.load(pack_dir)
+    except Exception as e:
+        return {
+            "pack": {"name": pack_dir.name, "version": "unknown", "description": ""},
+            "summary": {"denies": 0, "warnings": 0, "errors": 1},
+            "denies": [],
+            "warnings": [],
+            "errors": [{"message": f"Failed to load pack: {e}"}],
+        }
+
     if not pack.rules_dir.exists():
         return {
             "pack": {"name": pack.name, "version": pack.version, "description": pack.description},

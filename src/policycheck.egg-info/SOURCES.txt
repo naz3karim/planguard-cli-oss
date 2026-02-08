@@ -1,6 +1,7 @@
 README.md
 pyproject.toml
 src/policycheck/__init__.py
+src/policycheck/api.py
 src/policycheck/cli.py
 src/policycheck/evaluator.py
 src/policycheck/pack.py

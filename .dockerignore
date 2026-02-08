@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+.git/
+.DS_Store
+tfplan
+*.tfstate
+*.tfstate.*
+plan.json

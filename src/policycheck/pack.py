@@ -15,6 +15,9 @@ class Pack:
     @staticmethod
     def load(pack_dir: Path) -> "Pack":
         pack_file = pack_dir / "pack.yaml"
+        if not pack_file.exists():
+            raise FileNotFoundError(f"pack.yaml not found: {pack_file}")
+
         data: Dict[str, Any] = yaml.safe_load(pack_file.read_text(encoding="utf-8")) or {}
         name = str(data.get("name", pack_dir.name))
         version = str(data.get("version", "0.0.0"))

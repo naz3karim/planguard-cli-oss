@@ -50,4 +50,12 @@ def render_markdown(result: Dict[str, Any]) -> str:
                 lines.append(f"  - fix: {fix}")
         lines.append("")
 
+    if result.get("warnings"):
+        lines.append("## Warnings")
+        for w in result["warnings"]:
+            cid = w.get("control_id", "UNKNOWN")
+            msg = w.get("message", "")
+            lines.append(f"- **{cid}**: {msg}")
+        lines.append("")
+
     return "\n".join(lines)
