@@ -31,17 +31,31 @@ def main() -> None:
         version=f"%(prog)s {pkg_version('policycheck')}",
     )
 
-    p.add_argument("plan_json", help="Path to terraform plan JSON (terraform show -json tfplan)")
-    p.add_argument(
+    subparsers = p.add_subparsers(dest="command", required=True)
+
+    check = subparsers.add_parser(
+        "check",
+        help="Evaluate a Terraform plan JSON against policy packs",
+    )
+
+    check.add_argument(
+        "plan_json",
+        help="Path to terraform plan JSON (terraform show -json tfplan)",
+    )
+    check.add_argument(
         "--pack",
         default="baseline",
         help="Pack name (baseline, soc2-prod) or pack directory path",
     )
-    p.add_argument("--format", choices=["markdown", "json"], default="markdown")
-    p.add_argument("--out", default="-", help="Output file path or '-' for stdout")
-    p.add_argument("--env", default=os.getenv("POLICYCHECK_ENV", ""), help="Environment label (prod/dev)")
+    check.add_argument("--format", choices=["markdown", "json"], default="markdown")
+    check.add_argument("--out", default="-", help="Output file path or '-' for stdout")
+    check.add_argument("--env", default=os.getenv("POLICYCHECK_ENV", ""), help="Environment label (prod/dev)")
 
     args = p.parse_args()
+
+    # Currently only one subcommand, but this keeps it extensible
+    if args.command != "check":
+        p.error("Unknown command")
 
     plan_path = Path(args.plan_json)
     if not plan_path.exists():
