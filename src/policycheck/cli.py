@@ -4,87 +4,153 @@ import json
 import os
 import sys
 from pathlib import Path
+from importlib.metadata import version as pkg_version
 
 from policycheck.evaluator import evaluate
-from policycheck.report import render_markdown, render_json
-from importlib.metadata import version as pkg_version
+from policycheck.report import (
+    render_markdown,
+    render_json,
+    render_github,
+)
 
 
 def _resolve_pack(pack_arg: str) -> Path:
-    # Treat explicit paths as paths (./, ../, /)
+    """
+    Resolve a policy pack.
+    - Absolute or relative path → use directly
+    - Otherwise → controls/packs/<name>
+    """
     if pack_arg.startswith(("/", "./", "../")):
         return Path(pack_arg)
-
-    # Otherwise treat it as a pack name
     return Path("controls") / "packs" / pack_arg
 
 
 def main() -> None:
-    p = argparse.ArgumentParser(
+    parser = argparse.ArgumentParser(
         prog="policycheck",
-        description="Terraform Compliance-as-Code gate (OPA/Rego). Fails on deny rules.",
+        description=(
+            "PolicyCheck — CI-native Infrastructure Compliance Gate.\n"
+            "Evaluates Terraform plans against compliance policy packs "
+            "(OPA/Rego) and fails builds on violations."
+        ),
     )
 
-    p.add_argument(
+    parser.add_argument(
         "--version",
         action="version",
         version=f"%(prog)s {pkg_version('policycheck')}",
     )
 
-    subparsers = p.add_subparsers(dest="command", required=True)
+    subparsers = parser.add_subparsers(dest="command", required=True)
 
+    # -------------------------
+    # check command
+    # -------------------------
     check = subparsers.add_parser(
         "check",
-        help="Evaluate a Terraform plan JSON against policy packs",
+        help="Evaluate a Terraform plan JSON against a policy pack",
     )
 
     check.add_argument(
         "plan_json",
-        help="Path to terraform plan JSON (terraform show -json tfplan)",
+        help="Path to Terraform plan JSON (terraform show -json tfplan)",
     )
+
     check.add_argument(
         "--pack",
         default="baseline",
-        help="Pack name (baseline, soc2-prod) or pack directory path",
+        help="Policy pack name (baseline, soc2-prod) or path to a pack directory",
     )
-    check.add_argument("--format", choices=["markdown", "json"], default="markdown")
-    check.add_argument("--out", default="-", help="Output file path or '-' for stdout")
-    check.add_argument("--env", default=os.getenv("POLICYCHECK_ENV", ""), help="Environment label (prod/dev)")
 
-    args = p.parse_args()
+    check.add_argument(
+        "--format",
+        choices=["markdown", "json", "github"],
+        default="markdown",
+        help="Output format (default: markdown)",
+    )
 
-    # Currently only one subcommand, but this keeps it extensible
+    check.add_argument(
+        "--out",
+        default="-",
+        help="Output file path or '-' for stdout",
+    )
+
+    check.add_argument(
+        "--env",
+        default=os.getenv("POLICYCHECK_ENV", ""),
+        help="Environment label (e.g. prod, staging, dev)",
+    )
+
+    args = parser.parse_args()
+
     if args.command != "check":
-        p.error("Unknown command")
+        parser.error("Unknown command")
 
+    # -------------------------
+    # Load Terraform plan
+    # -------------------------
     plan_path = Path(args.plan_json)
     if not plan_path.exists():
-        print(f"ERROR: plan json not found: {plan_path}", file=sys.stderr)
+        print(f"ERROR: Terraform plan JSON not found: {plan_path}", file=sys.stderr)
         sys.exit(2)
 
     try:
         plan = json.loads(plan_path.read_text(encoding="utf-8"))
     except Exception as e:
-        print(f"ERROR: failed to parse plan json: {e}", file=sys.stderr)
+        print(f"ERROR: Failed to parse Terraform plan JSON: {e}", file=sys.stderr)
         sys.exit(2)
 
+    # -------------------------
+    # Resolve policy pack
+    # -------------------------
     pack_dir = _resolve_pack(args.pack)
     if not pack_dir.exists():
-        print(f"ERROR: pack not found: {pack_dir} (arg was: {args.pack})", file=sys.stderr)
+        print(
+            f"ERROR: Policy pack not found: {pack_dir} (arg was: {args.pack})",
+            file=sys.stderr,
+        )
         sys.exit(2)
 
-    result = evaluate(plan=plan, pack_dir=pack_dir, env=args.env)
+    # -------------------------
+    # Evaluate
+    # -------------------------
+    result = evaluate(
+        plan=plan,
+        pack_dir=pack_dir,
+        env=args.env,
+    )
 
-    out_text = render_markdown(result) if args.format == "markdown" else render_json(result)
-
-    if args.out == "-":
-        print(out_text)
+    # -------------------------
+    # Render output
+    # -------------------------
+    if args.format == "markdown":
+        output = render_markdown(result)
+    elif args.format == "json":
+        output = render_json(result)
+    elif args.format == "github":
+        output = render_github(result)
     else:
-        Path(args.out).write_text(out_text, encoding="utf-8")
-
-    # Exit code contract: 0 pass, 1 denies, 2 errors
-    if result["summary"]["errors"] > 0:
+        print(f"ERROR: Unknown format: {args.format}", file=sys.stderr)
         sys.exit(2)
-    if result["summary"]["denies"] > 0:
+
+    # -------------------------
+    # Write output
+    # -------------------------
+    if args.out == "-":
+        print(output)
+    else:
+        Path(args.out).write_text(output, encoding="utf-8")
+
+    # -------------------------
+    # Exit code contract (CI-safe)
+    # -------------------------
+    # 0 = pass
+    # 1 = policy denies (compliance failure)
+    # 2 = tool / evaluation error
+    summary = result.get("summary", {})
+    if summary.get("errors", 0) > 0:
+        sys.exit(2)
+    if summary.get("denies", 0) > 0:
         sys.exit(1)
+
     sys.exit(0)

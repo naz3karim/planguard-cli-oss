@@ -37,3 +37,8 @@ jobs:
           tags: |
             ghcr.io/naz3karim/policycheck:${{ github.ref_name }}
             ghcr.io/naz3karim/policycheck:latest
+
+      - name: Smoke test image
+        run: |
+          docker pull ghcr.io/naz3karim/policycheck:${{ github.ref_name }}
+          docker run --rm ghcr.io/naz3karim/policycheck:${{ github.ref_name }} --help
