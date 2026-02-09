@@ -11,13 +11,43 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Generate Terraform plan
-        run: |
-          terraform init -input=false
-          terraform plan -out=tfplan
-          terraform show -json tfplan > plan.json
+      - name: Build policycheck image (from this repo)
+        run: docker build -t policycheck:local .
 
-      - name: Run PolicyCheck
-        uses: docker://ghcr.io/naz3karim/policycheck:latest
-        with:
-          args: check plan.json --pack baseline
+      - name: Baseline fixtures (must pass/fail)
+        run: |
+          set -euo pipefail
+
+          # Good: should PASS
+          docker run --rm -v "$PWD:/work" policycheck:local check \
+            /work/examples/baseline/good_plan.json \
+            --pack baseline --format markdown
+
+          # Bad PAB: should FAIL (if it passes, fail the job)
+          docker run --rm -v "$PWD:/work" policycheck:local check \
+            /work/examples/baseline/bad_plan.json \
+            --pack baseline --format markdown && exit 1 || true
+
+          # Good ENC: should PASS
+          docker run --rm -v "$PWD:/work" policycheck:local check \
+            /work/examples/baseline/good_enc_plan.json \
+            --pack baseline --format markdown
+
+          # Bad ENC: should FAIL
+          docker run --rm -v "$PWD:/work" policycheck:local check \
+            /work/examples/baseline/bad_enc_plan.json \
+            --pack baseline --format markdown && exit 1 || true
+
+      - name: SOC2-prod fixtures (CloudTrail must pass/fail)
+        run: |
+          set -euo pipefail
+
+          # Good CloudTrail: should PASS
+          docker run --rm -v "$PWD:/work" policycheck:local check \
+            /work/examples/soc2-prod/good_cloudtrail_plan.json \
+            --pack soc2-prod --format markdown
+
+          # Bad CloudTrail: should FAIL
+          docker run --rm -v "$PWD:/work" policycheck:local check \
+            /work/examples/soc2-prod/bad_cloudtrail_plan.json \
+            --pack soc2-prod --format markdown && exit 1 || true
