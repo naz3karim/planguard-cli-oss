@@ -3,17 +3,20 @@ name: Release (GHCR)
 on:
   push:
     tags:
-      - "v*.*.*"
-
-permissions:
-  contents: read
-  packages: write
+      - "v*"
 
 jobs:
-  build-and-push:
+  release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -25,11 +28,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build & push (version tag + latest)
+      - name: Build and push (multi-arch)
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
+          platforms: linux/amd64,linux/arm64
           tags: |
-            ghcr.io/${{ github.repository }}:${{ github.ref_name }}
-            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/naz3karim/policycheck:${{ github.ref_name }}
+            ghcr.io/naz3karim/policycheck:latest
