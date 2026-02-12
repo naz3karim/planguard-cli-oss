@@ -36,10 +36,10 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64
           tags: |
-            ghcr.io/planguard/planguard-cli:${{ github.ref_name }}
-            ghcr.io/planguard/planguard-cli:latest
+            ghcr.io/naz3karim/planguard-cli-oss:${{ github.ref_name }}
+            ghcr.io/naz3karim/planguard-cli-oss:latest
 
       - name: Smoke test image
         run: |
-          docker pull ghcr.io/planguard/planguard-cli:${{ github.ref_name }}
-          docker run --rm ghcr.io/planguard/planguard-cli:${{ github.ref_name }} --help
+          docker pull ghcr.io/naz3karim/planguard-cli-oss:${{ github.ref_name }}
+          docker run --rm ghcr.io/naz3karim/planguard-cli-oss:${{ github.ref_name }} --help
