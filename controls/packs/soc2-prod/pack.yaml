@@ -1,4 +1,0 @@
-name: soc2-prod
-version: 0.1.0
-rules_dir: rules
-description: "SOC 2 oriented production controls (baseline + prod-only)."
